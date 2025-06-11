@@ -1,9 +1,12 @@
-library("stringdist")
-library("stringr")
-library("data.table")
+detach("package:fuzzywuzzyR", unload = TRUE)
+reticulate::py_config()
+library("fuzzywuzzyR")
+check_availability()
+init_scor = FuzzMatcher$new()
 
-# TELJES EGYEZÉS
-filename <- "Talalt_Parok_3._kat.txt"
+
+#Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Token Set Ratio. Teljes nevek vizsgálata.
+filename <- "Talalt_Parok_1._kat_Token_Set_Ratio_90.txt"
 
 if (file.exists(filename)){
   
@@ -11,23 +14,25 @@ if (file.exists(filename)){
   
 }
 
+SCOR = init_scor$Token_set_ratio
+
 for(i in 1:nrow(SILC)){
   
-  if (SILC[i, "Kategoria"] != 3 | SILC[i, "Talalt"] != 0)
+  if(SILC[i, "Kategoria"] != 1 | SILC[i, "Talalt"] != 0)
     next
   
   database_Subset <- subset(database, database$SZUL_DAT == paste(SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], sep = "-"))
   
-  if (nrow(database_Subset) == 0)
+  if(nrow(database_Subset) == 0)
     next
   
   for(k in 1:nrow(database_Subset)){
     
-    Employee_Name_Diff <- stringdist(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), method = "dl")
-    Employee_BirthName_Diff <- stringdist(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), method = "dl")
-    Mother_Name_Diff <- stringdist(SILC[i, "ANYNEV_VIZSGALT"], paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), method = "dl")
+    Employee_Name_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), force_ascii = TRUE, full_process = TRUE)
+    Employee_BirthName_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), force_ascii = TRUE, full_process = TRUE)
+    Mother_Name_Diff <- SCOR(SILC[i, "ANYNEV_VIZSGALT"], paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), force_ascii = TRUE, full_process = TRUE)
     
-    if (Employee_Name_Diff == 0){
+    if (Employee_Name_Diff >= 90 & Mother_Name_Diff >= 90){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), 
@@ -44,7 +49,7 @@ for(i in 1:nrow(SILC)){
       
     }
     
-    if (Employee_BirthName_Diff == 0){
+    if (Employee_BirthName_Diff >= 90 & Mother_Name_Diff >= 90){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), 
@@ -63,8 +68,8 @@ for(i in 1:nrow(SILC)){
 }
 
 
-#Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Csak első két név vizsgálata.
-filename <- "Talalt_Parok_3._kat_b.txt"
+#Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Partial Ratio. Teljes nevek vizsgálata.
+filename <- "Talalt_Parok_1._kat_Partial_Ratio_90.txt"
 
 if (file.exists(filename)){
   
@@ -72,91 +77,31 @@ if (file.exists(filename)){
   
 }
 
-for(i in 1:nrow(SILC)){
-  
-  if (SILC[i, "Kategoria"] != 3 | SILC[i, "Talalt"] != 0)
-    next
-  
-  SILC_Employee_Fullname <- strsplit(SILC[i, "SZNEV_VIZSGALT"], "\\s")[[1]]
-  SILC_Mother_Fullname <- SILC[i, "ANYNEV_VIZSGALT"]
-  
-  database_Subset <- subset(database, database$SZUL_DAT == paste(SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], sep = "-"))
-  
-  if (nrow(database_Subset) == 0)
-    next
-  
-  for(k in 1:nrow(database_Subset)){
-    
-    FirstName <- strsplit(database_Subset[k, "UNEVEM"], "\\s")[[1]]
-    BirthFirstName <- strsplit(database_Subset[k, "SZUNEVE"], "\\s")[[1]]
-    MotherFirstName <- strsplit(database_Subset[k, "AUNEVE"], "\\s")[[1]]
-    
-    Employee_Name_Diff <- stringdist(paste(SILC_Employee_Fullname[1], SILC_Employee_Fullname[2], sep = " "), paste(database_Subset[k, "VNEVEM"], FirstName[1], sep = " "), method = "dl")
-    Employee_BirthName_Diff <- stringdist(paste(SILC_Employee_Fullname[1], SILC_Employee_Fullname[2], sep = " "), paste(database_Subset[k, "SZVNEVE"], BirthFirstName[1], sep = " "), method = "dl")
-    Mother_Name_Diff <- stringdist(SILC_Mother_Fullname, MotherFirstName[1], method = "dl")
-    
-    if (Employee_Name_Diff == 0){
-      
-      cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
-                paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), 
-                paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), 
-                database_Subset[k, "AAJE"], 
-                SILC[i, "ADOSZAM"], 
-                database_Subset[k, "SZUL_DAT"], 
-                SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], 
-                SILC[i, "FEOR08"],
-                SILC[i, "Kategoria"],
-                sep = ";"), sep = "\n", file = filename, append = TRUE)
-      SILC[i, "Talalt"] <- 1
-      next
-      
-    }
-    
-    if (Employee_BirthName_Diff == 0){
-      
-      cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
-                paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), 
-                paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), 
-                database_Subset[k, "AAJE"], 
-                SILC[i, "ADOSZAM"], 
-                database_Subset[k, "SZUL_DAT"], 
-                SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], 
-                SILC[i, "FEOR08"],
-                SILC[i, "Kategoria"],
-                sep = ";"), sep = "\n", file = filename, append = TRUE)
-      SILC[i, "Talalt"] <- 1
-      
-    }
-  }
-}
-
-
-#Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Legfeljebb 2 eltérés.
-filename <- "Talalt_Parok_3._kat_c.txt"
-
-if (file.exists(filename)){
-  
-  file.remove(filename)
-  
-}
+SCOR = init_scor$Partial_ratio
 
 for(i in 1:nrow(SILC)){
   
-  if (SILC[i, "Kategoria"] != 3 | SILC[i, "Talalt"] != 0)
+  if(SILC[i, "Kategoria"] != 1 | SILC[i, "Talalt"] != 0)
     next
   
   database_Subset <- subset(database, database$SZUL_DAT == paste(SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], sep = "-"))
   
-  if (nrow(database_Subset) == 0)
+  if(nrow(database_Subset) == 0)
     next
   
   for(k in 1:nrow(database_Subset)){
     
-    Employee_Name_Diff <- stringdist(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), method = "dl")
-    Employee_BirthName_Diff <- stringdist(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), method = "dl")
-    Mother_Name_Diff <- stringdist(SILC[i, "ANYNEV_VIZSGALT"], paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), method = "dl")
+    if (is.na(database_Subset[k, "VNEVEM"]) == TRUE | is.na(database_Subset[k, "UNEVEM"]) == TRUE | is.na(database_Subset[k, "SZVNEVE"]) == TRUE | is.na(database_Subset[k, "SZUNEVE"]) == TRUE | is.na(database_Subset[k, "AVNEVE"]) == TRUE | is.na(database_Subset[k, "AUNEVE"]) == TRUE)
+      next
     
-    if (Employee_Name_Diff <= 2){
+    if (database_Subset[k, "VNEVEM"] == "" | database_Subset[k, "UNEVEM"] == "" | database_Subset[k, "SZVNEVE"] == "" | database_Subset[k, "SZUNEVE"] == "" | database_Subset[k, "AVNEVE"] == "" | database_Subset[k, "AUNEVE"] == "")
+      next
+    
+    Employee_Name_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "))
+    Employee_BirthName_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "))
+    Mother_Name_Diff <- SCOR(SILC[i, "ANYNEV_VIZSGALT"], paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "))
+    
+    if (Employee_Name_Diff >= 90 & Mother_Name_Diff >= 90){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), 
@@ -173,7 +118,7 @@ for(i in 1:nrow(SILC)){
       
     }
     
-    if (Employee_BirthName_Diff <= 2){
+    if (Employee_BirthName_Diff >= 90 & Mother_Name_Diff >= 90){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), 
@@ -192,8 +137,8 @@ for(i in 1:nrow(SILC)){
 }
 
 
-#Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Csak első két név vizsgálata. Legfeljebb két eltérés.
-filename <- "Talalt_Parok_3._kat_d.txt"
+#Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Token Set Ratio. Teljes nevek vizsgálata.
+filename <- "Talalt_Parok_1._kat_Token_Set_Ratio_85.txt"
 
 if (file.exists(filename)){
   
@@ -201,30 +146,25 @@ if (file.exists(filename)){
   
 }
 
+SCOR = init_scor$Token_set_ratio
+
 for(i in 1:nrow(SILC)){
   
-  if (SILC[i, "Kategoria"] != 3 | SILC[i, "Talalt"] != 0)
+  if(SILC[i, "Kategoria"] != 1 | SILC[i, "Talalt"] != 0)
     next
-  
-  SILC_Employee_Fullname <- strsplit(SILC[i, "SZNEV_VIZSGALT"], "\\s")[[1]]
-  SILC_Mother_Fullname <- SILC[i, "ANYNEV_VIZSGALT"]
   
   database_Subset <- subset(database, database$SZUL_DAT == paste(SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], sep = "-"))
   
-  if (nrow(database_Subset) == 0)
+  if(nrow(database_Subset) == 0)
     next
   
   for(k in 1:nrow(database_Subset)){
     
-    FirstName <- strsplit(database_Subset[k, "UNEVEM"], "\\s")[[1]]
-    BirthFirstName <- strsplit(database_Subset[k, "SZUNEVE"], "\\s")[[1]]
-    MotherFirstName <- strsplit(database_Subset[k, "AUNEVE"], "\\s")[[1]]
+    Employee_Name_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), force_ascii = TRUE, full_process = TRUE)
+    Employee_BirthName_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), force_ascii = TRUE, full_process = TRUE)
+    Mother_Name_Diff <- SCOR(SILC[i, "ANYNEV_VIZSGALT"], paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), force_ascii = TRUE, full_process = TRUE)
     
-    Employee_Name_Diff <- stringdist(paste(SILC_Employee_Fullname[1], SILC_Employee_Fullname[2], sep = " "), paste(database_Subset[k, "VNEVEM"], FirstName[1], sep = " "), method = "dl")
-    Employee_BirthName_Diff <- stringdist(paste(SILC_Employee_Fullname[1], SILC_Employee_Fullname[2], sep = " "), paste(database_Subset[k, "SZVNEVE"], BirthFirstName[1], sep = " "), method = "dl")
-    Mother_Name_Diff <- stringdist(SILC_Mother_Fullname, MotherFirstName[1], method = "dl")
-    
-    if (Employee_Name_Diff <= 2){
+    if (Employee_Name_Diff >= 85 & Mother_Name_Diff >= 85){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), 
@@ -241,7 +181,7 @@ for(i in 1:nrow(SILC)){
       
     }
     
-    if (Employee_BirthName_Diff <= 2){
+    if (Employee_BirthName_Diff >= 85 & Mother_Name_Diff >= 85){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), 
@@ -260,8 +200,8 @@ for(i in 1:nrow(SILC)){
 }
 
 
-# Születési dátum nem egyezik
-filename <- "Talalt_Parok_3._kat_SZULDAT_NEM0.txt"
+#Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Partial Ratio. Teljes nevek vizsgálata.
+filename <- "Talalt_Parok_1._kat_Partial_Ratio_85.txt"
 
 if (file.exists(filename)){
   
@@ -269,29 +209,31 @@ if (file.exists(filename)){
   
 }
 
+SCOR = init_scor$Partial_ratio
+
 for(i in 1:nrow(SILC)){
   
-  if (SILC[i, "Kategoria"] != 3 | SILC[i, "Talalt"] != 0)
+  if(SILC[i, "Kategoria"] != 1 | SILC[i, "Talalt"] != 0)
     next
   
-  database_Subset <- database[(NAV_Adozo_Kezdo_Betu == substr(SILC[i, "SZNEV_VIZSGALT"], start = 1, stop = 1)), ]
+  database_Subset <- subset(database, database$SZUL_DAT == paste(SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], sep = "-"))
   
-  if (nrow(database_Subset) == 0)
+  if(nrow(database_Subset) == 0)
     next
   
   for(k in 1:nrow(database_Subset)){
     
-    if (is.na(database_Subset[k, "SZUL_DAT"]) == TRUE)
+    if (is.na(database_Subset[k, "VNEVEM"]) == TRUE | is.na(database_Subset[k, "UNEVEM"]) == TRUE | is.na(database_Subset[k, "SZVNEVE"]) == TRUE | is.na(database_Subset[k, "SZUNEVE"]) == TRUE | is.na(database_Subset[k, "AVNEVE"]) == TRUE | is.na(database_Subset[k, "AUNEVE"]) == TRUE)
       next
     
-    if (str_sub(database_Subset[k, "SZUL_DAT"], 1, 4) != SILC[i, "SZEV"] & str_sub(database_Subset[k, "SZUL_DAT"], 6, 7) != SILC[i, "SZHO"] & str_sub(database_Subset[k, "SZUL_DAT"], 9, 10) !=  SILC[i, "SZNAP"])
+    if (database_Subset[k, "VNEVEM"] == "" | database_Subset[k, "UNEVEM"] == "" | database_Subset[k, "SZVNEVE"] == "" | database_Subset[k, "SZUNEVE"] == "" | database_Subset[k, "AVNEVE"] == "" | database_Subset[k, "AUNEVE"] == "")
       next
     
-    Employee_Name_Diff <- stringdist(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), method = "dl")
-    Employee_BirthName_Diff <- stringdist(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), method = "dl")
-    Mother_Name_Diff <- stringdist(SILC[i, "ANYNEV_VIZSGALT"], paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), method = "dl")
+    Employee_Name_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "))
+    Employee_BirthName_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "))
+    Mother_Name_Diff <- SCOR(SILC[i, "ANYNEV_VIZSGALT"], paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "))
     
-    if (Employee_Name_Diff == 0){
+    if (Employee_Name_Diff >= 85 & Mother_Name_Diff >= 85){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), 
@@ -308,7 +250,7 @@ for(i in 1:nrow(SILC)){
       
     }
     
-    if (Employee_BirthName_Diff == 0){
+    if (Employee_BirthName_Diff >= 85 & Mother_Name_Diff >= 85){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), 
@@ -327,8 +269,8 @@ for(i in 1:nrow(SILC)){
 }
 
 
-# Születési dátum nem egyezik
-filename <- "Talalt_Parok_3._kat_SZULDAT_NEM0_2.txt"
+#Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Token Set Ratio. Teljes nevek vizsgálata.
+filename <- "Talalt_Parok_1._kat_Token_Set_Ratio_80.txt"
 
 if (file.exists(filename)){
   
@@ -336,36 +278,25 @@ if (file.exists(filename)){
   
 }
 
+SCOR = init_scor$Token_set_ratio
+
 for(i in 1:nrow(SILC)){
   
-  if (SILC[i, "Kategoria"] != 3 | SILC[i, "Talalt"] != 0)
+  if(SILC[i, "Kategoria"] != 1 | SILC[i, "Talalt"] != 0)
     next
   
-  SILC_Employee_Fullname <- strsplit(SILC[i, "SZNEV_VIZSGALT"], "\\s")[[1]]
-  SILC_Mother_Fullname <- strsplit(SILC[i, "ANYNEV_VIZSGALT"], "\\s")[[1]]
+  database_Subset <- subset(database, database$SZUL_DAT == paste(SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], sep = "-"))
   
-  database_Subset <- database[(NAV_Adozo_Kezdo_Betu == substr(SILC_Employee_Fullname[1], start = 1, stop = 1) & NAV_Adozo_Kezdo_Betu_Kereszt == substr(SILC_Employee_Fullname[2], start = 1, stop = 1) & NAV_Anyja_Szul_Neve_Kezdo_Betu_Kereszt == substr(SILC_Mother_Fullname[2], start = 1, stop = 1)), ]
-  
-  if (nrow(database_Subset) == 0)
+  if(nrow(database_Subset) == 0)
     next
   
   for(k in 1:nrow(database_Subset)){
     
-    if (is.na(database_Subset[k, "SZUL_DAT"]) == TRUE)
-      next
+    Employee_Name_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), force_ascii = TRUE, full_process = TRUE)
+    Employee_BirthName_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), force_ascii = TRUE, full_process = TRUE)
+    Mother_Name_Diff <- SCOR(SILC[i, "ANYNEV_VIZSGALT"], paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), force_ascii = TRUE, full_process = TRUE)
     
-    if (str_sub(database_Subset[k, "SZUL_DAT"], 1, 4) != SILC[i, "SZEV"] & str_sub(database_Subset[k, "SZUL_DAT"], 6, 7) != SILC[i, "SZHO"] & str_sub(database_Subset[k, "SZUL_DAT"], 9, 10) !=  SILC[i, "SZNAP"])
-      next
-    
-    FirstName <- strsplit(database_Subset[k, "UNEVEM"], "\\s")[[1]]
-    BirthFirstName <- strsplit(database_Subset[k, "SZUNEVE"], "\\s")[[1]]
-    MotherFirstName <- strsplit(database_Subset[k, "AUNEVE"], "\\s")[[1]]
-    
-    Employee_Name_Diff <- stringdist(paste(SILC_Employee_Fullname[1], SILC_Employee_Fullname[2], sep = " "), paste(database_Subset[k, "VNEVEM"], FirstName[1], sep = " "), method = "dl")
-    Employee_BirthName_Diff <- stringdist(paste(SILC_Employee_Fullname[1], SILC_Employee_Fullname[2], sep = " "), paste(database_Subset[k, "SZVNEVE"], BirthFirstName[1], sep = " "), method = "dl")
-    Mother_Name_Diff <- stringdist(SILC_Mother_Fullname, MotherFirstName[1], method = "dl")
-    
-    if (Employee_Name_Diff == 0){
+    if (Employee_Name_Diff >= 80 & Mother_Name_Diff >= 80){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), 
@@ -382,7 +313,7 @@ for(i in 1:nrow(SILC)){
       
     }
     
-    if (Employee_BirthName_Diff == 0){
+    if (Employee_BirthName_Diff >= 80 & Mother_Name_Diff >= 80){
       
       cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
                 paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), 
@@ -399,6 +330,74 @@ for(i in 1:nrow(SILC)){
     }
   }
 }
+SILC[SILC$FIXSZ == "1808010001", "Talalt"] <- 0
+SILC[SILC$FIXSZ == "2886610001", "Talalt"] <- 0
 
 
-View(SILC[SILC$Kategoria == 3 & SILC$Talalt == 0, ])
+#Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Partial Ratio. Teljes nevek vizsgálata.
+filename <- "Talalt_Parok_1._kat_Partial_Ratio_80.txt"
+
+if (file.exists(filename)){
+  
+  file.remove(filename)
+  
+}
+
+SCOR = init_scor$Partial_ratio
+
+for(i in 1:nrow(SILC)){
+  
+  if(SILC[i, "Kategoria"] != 1 | SILC[i, "Talalt"] != 0)
+    next
+  
+  database_Subset <- subset(database, database$SZUL_DAT == paste(SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], sep = "-"))
+  
+  if(nrow(database_Subset) == 0)
+    next
+  
+  for(k in 1:nrow(database_Subset)){
+    
+    if (is.na(database_Subset[k, "VNEVEM"]) == TRUE | is.na(database_Subset[k, "UNEVEM"]) == TRUE | is.na(database_Subset[k, "SZVNEVE"]) == TRUE | is.na(database_Subset[k, "SZUNEVE"]) == TRUE | is.na(database_Subset[k, "AVNEVE"]) == TRUE | is.na(database_Subset[k, "AUNEVE"]) == TRUE)
+      next
+    
+    if (database_Subset[k, "VNEVEM"] == "" | database_Subset[k, "UNEVEM"] == "" | database_Subset[k, "SZVNEVE"] == "" | database_Subset[k, "SZUNEVE"] == "" | database_Subset[k, "AVNEVE"] == "" | database_Subset[k, "AUNEVE"] == "")
+      next
+    
+    Employee_Name_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "))
+    Employee_BirthName_Diff <- SCOR(SILC[i, "SZNEV_VIZSGALT"], paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "))
+    Mother_Name_Diff <- SCOR(SILC[i, "ANYNEV_VIZSGALT"], paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "))
+    
+    if (Employee_Name_Diff >= 80 & Mother_Name_Diff >= 80){
+      
+      cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
+                paste(database_Subset[k, "VNEVEM"], database_Subset[k, "UNEVEM"], sep = " "), 
+                paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), 
+                database_Subset[k, "AAJE"], 
+                SILC[i, "ADOSZAM"], 
+                database_Subset[k, "SZUL_DAT"], 
+                SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], 
+                SILC[i, "FEOR08"],
+                SILC[i, "Kategoria"],
+                sep = ";"), sep = "\n", file = filename, append = TRUE)
+      SILC[i, "Talalt"] <- 1
+      next
+      
+    }
+    
+    if (Employee_BirthName_Diff >= 80 & Mother_Name_Diff >= 80){
+      
+      cat(paste(SILC[i, "HAZTART"], SILC[i, "FIXSZ"], SILC[i, "SZNEV_VIZSGALT"], SILC[i, "ANYNEV_VIZSGALT"], 
+                paste(database_Subset[k, "SZVNEVE"], database_Subset[k, "SZUNEVE"], sep = " "), 
+                paste(database_Subset[k, "AVNEVE"], database_Subset[k, "AUNEVE"], sep = " "), 
+                database_Subset[k, "AAJE"], 
+                SILC[i, "ADOSZAM"], 
+                database_Subset[k, "SZUL_DAT"], 
+                SILC[i, "SZEV"], SILC[i, "SZHO"], SILC[i, "SZNAP"], 
+                SILC[i, "FEOR08"],
+                SILC[i, "Kategoria"],
+                sep = ";"), sep = "\n", file = filename, append = TRUE)
+      SILC[i, "Talalt"] <- 1
+      
+    }
+  }
+}
