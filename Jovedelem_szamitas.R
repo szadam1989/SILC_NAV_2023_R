@@ -35,7 +35,7 @@ for(i in 1:nrow(SILC_FEOR2Jegy)){
   database_SzulEvHo_FILTER <- as.data.table(subset(Income_SzulEvHo, Income_SzulEvHo$SZUL_IDO == paste(SILC_FEOR2Jegy[i, "SZEV"], SILC_FEOR2Jegy[i, "SZHO"], sep = "-") & Income_SzulEvHo$ML05 == SILC_FEOR2Jegy[i, "NEME"] & Income_SzulEvHo$LGAA517 != 0 & Income_SzulEvHo$LGAA520 != 0))
   database_SzulEvHo_FILTER <- database_SzulEvHo_FILTER[, .(SUMLGAA517 = sum(LGAA517), SUMLGAA520 = sum(LGAA520)), by = "AAJE,LGAA029,SZUL_IDO,ML05"]
 
-  if(nrow(DT) != 0){
+  if(nrow(database_SzulEvHo_FILTER) != 0){
 
     database_WITH_SILC_AZON_by_FEOR <- as.data.frame(cbind(SILC_FEOR2Jegy[i, "FIXSZ"], SILC_FEOR2Jegy[i, "SZNEV_VIZSGALT"], SILC_FEOR2Jegy[i, "ANYNEV_VIZSGALT"], SILC_FEOR2Jegy[i, "FEOR08"], SILC_FEOR2Jegy[i, "NEME"], database_SzulEvHo_FILTER))
     Income <- rbind(Income, database_WITH_SILC_AZON_by_FEOR)
@@ -62,11 +62,7 @@ mean1 <- as.data.table(Incomes_All)
 mean1 <- as.data.frame(mean1[, .(LGAA517 = mean(SUMLGAA517), LGAA520 = mean(SUMLGAA520)), by = "SZUL_IDO,ML05,LGAA029_2jegy"])
 dim(mean1) # 6189 sor és 5 oszlop
 
-for(i in 1:nrow(mean1)){
-  
-  cat(paste(mean1[i, 1], mean1[i, 2], mean1[i, 3], mean1[i, 4], mean1[i, 5], mean1[i, 6], sep = ";"), sep = "\n", file = "Számtani_közép_első_verzió.txt", append = TRUE)
-  
-}
+write.table(mean1 ,"Számtani_közép_első_verzió2.txt", quote = FALSE, sep = ";", row.names = FALSE, append = FALSE)
 
 mean2 <- as.data.table(Incomes_All)
 dim(mean2) # 1.181.198 sor és 7 oszlop
@@ -76,8 +72,4 @@ dim(mean2) # 797.898
 mean2 <- as.data.table(mean2)
 mean2 <- as.data.frame(mean2[, .(LGAA517=mean(SUMLGAA517), LGAA520=mean(SUMLGAA520)), by = "ML05,SZUL_IDO,LGAA029_2jegy"])
 
-for(i in 1:nrow(mean2)){
-  
-  cat(paste(mean2[i, 1], mean2[i, 2], mean2[i, 3], mean2[i, 4], mean2[i, 5], sep = ";"), sep = "\n", file = "Számtani_közép_JOBB.txt", append = TRUE)
-  
-}
+write.table(mean2 ,"Számtani_közép_JOBB2.txt", quote = FALSE, sep = ";", row.names = FALSE, append = FALSE)

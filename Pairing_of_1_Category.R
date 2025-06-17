@@ -1,6 +1,5 @@
 library("stringdist")
 library("stringr")
-library("data.table")
 
 #Adózó és anyja neve is megegyezik, továbbá a születési dátum is. Full Damerau-Levenshtein distance. Teljes nevek vizsgálata.
 filename <- "Talalt_Parok_1._kat.txt"
